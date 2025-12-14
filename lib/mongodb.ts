@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 // Extend the global namespace to include the mongoose cache
 declare global {
@@ -11,8 +11,6 @@ declare global {
 
 // MongoDB connection string from environment variables
 const MONGODB_URI = process.env.MONGODB_URI;
-
-
 
 /**
  * Global cache to store the MongoDB connection.
@@ -28,16 +26,10 @@ if (!cached) {
 /**
  * Establishes a connection to MongoDB using Mongoose.
  * Reuses existing connections when available to prevent connection pool exhaustion.
- * 
+ *
  * @returns Promise that resolves to the MongoDB connection
  */
 async function connectDB(): Promise<mongoose.Connection> {
-  if (!MONGODB_URI) {
-    throw new Error(
-      "Please define the MONGODB_URI environment variable "
-    );
-  }
-
   // Return cached connection if it exists
   if (cached.conn) {
     return cached.conn;
@@ -45,6 +37,9 @@ async function connectDB(): Promise<mongoose.Connection> {
 
   // If no promise exists, create a new connection
   if (!cached.promise) {
+    if (!MONGODB_URI) {
+      throw new Error("Please define the MONGODB_URI environment variable .env ");
+    }
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false, // Disable Mongoose buffering to fail fast on connection issues
     };
