@@ -13,20 +13,22 @@ const BookingSchema = new Schema<IBooking>(
   {
     eventId: {
       type: Schema.Types.ObjectId,
-      ref: 'Event',
-      required: [true, 'Event ID is required'],
+      ref: "Event",
+      required: [true, "Event ID is required"],
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: [true, "Email is required"],
       trim: true,
       lowercase: true,
       validate: {
-        validator: (v: string) => {
-          // RFC 5322 compliant email validation
-          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+        validator: function (email: string) {
+          // RFC 5322 compliant email validation regex
+          const emailRegex =
+            /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+          return emailRegex.test(email);
         },
-        message: 'Invalid email format',
+        message: "Invalid email format",
       },
     },
   },
@@ -36,26 +38,32 @@ const BookingSchema = new Schema<IBooking>(
 );
 
 // Pre-save hook: Verify that the referenced event exists
-BookingSchema.pre('save', async function () {
-  // Only validate eventId if it's new or has been modified
-  if (this.isNew || this.isModified('eventId')) {
+BookingSchema.pre("save", async function () {
+  if (this.isNew || this.isModified("eventId")) {
+    let eventExists: boolean;
     try {
-      const eventExists = await Event.exists({ _id: this.eventId });
-      if (!eventExists) {
-        throw new Error('Referenced event does not exist');
-      }
+      eventExists = !!(await Event.exists({ _id: this.eventId }));
     } catch (error) {
-      throw new Error('Failed to validate event reference');
+      throw new Error("Failed to validate event reference: database error");
+    }
+    if (!eventExists) {
+      throw new Error("Referenced event does not exist");
     }
   }
-  //next();
 });
 
 // Index on eventId for faster queries when retrieving bookings by event
 BookingSchema.index({ eventId: 1 });
 
+// Create compound index for common queries (events bookings by date)
+BookingSchema.index({ eventId: 1, createdAt: -1 });
+
 // Create index on email for user booking lookups
 BookingSchema.index({ email: 1 });
+
+// Enforce one booking per events per email
+BookingSchema.index({ eventId: 1, email: 1 }, { unique: true, name: 'uniq_event_email' });
+
 
 // Prevent model recompilation in development
 const Booking: Model<IBooking> =
